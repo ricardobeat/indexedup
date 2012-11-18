@@ -24,6 +24,9 @@ task 'watch:tests', ->
         'src/indexedup.coffee'
     ], build
 
+task 'clean', ->
+    cp.exec 'rm -rf test/testdb*'
+
 task 'test:browser', ->
     invoke 'build:tests'
     cp.exec 'open test/browser/index.html'

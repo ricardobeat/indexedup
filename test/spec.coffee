@@ -12,9 +12,6 @@ DB_PATH = 'test/testdb' + Date.now()
 
 describe 'IndexedUp', ->
 
-    after ->
-        require('fs').rmdirSync DB_PATH
-
     it 'should create a database', (done) ->
         options = {
             createIfMissing : true
