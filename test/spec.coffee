@@ -8,15 +8,19 @@ else
 should = chai.Should()
 
 db = null
+DB_PATH = 'test/testdb' + Date.now()
 
 describe 'IndexedUp', ->
+
+    after ->
+        require('fs').rmdirSync DB_PATH
 
     it 'should create a database', (done) ->
         options = {
             createIfMissing : true
             errorIfExists   : false
         }
-        levelup './testdb', options, (err, newdb) ->
+        levelup DB_PATH, options, (err, newdb) ->
             throw err if err
             db = newdb
             done()

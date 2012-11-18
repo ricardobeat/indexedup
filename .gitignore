@@ -21,4 +21,4 @@ thumbs.db
 
 test/browser/*.js
 test/browser/*.css
-test/test.db
+test/testdb*

@@ -16,14 +16,26 @@ IDBKeyRange    = prefixed 'IDBKeyRange'
 # Implements a readable stream for our
 # IndexedDB instance
 class ReadableStream extends stream.Stream
-    constructor: (@db) ->
+    constructor: (@idb) ->
         @readable = true
         process.nextTick @init.bind @
 
     init: ->
-        for key, value of @db.values
-            @emit 'data', { key, value }
-        @end()
+        transaction = @idb.db.transaction [@idb.storename], 'readonly'
+        store = transaction.objectStore @idb.storename
+        keyRange = IDBKeyRange.lowerBound 0
+        req = store.openCursor keyRange
+
+        req.onsuccess = (e) =>
+            return unless result = e.target.result
+            @emit 'data', result.value
+            result.continue()
+
+        req.onerror = (err) =>
+            @emit 'error', err
+
+        transaction.oncomplete = =>
+            @end()
 
     write: (chunk, encoding) ->
         @emit 'data', chunk
@@ -33,27 +45,60 @@ class ReadableStream extends stream.Stream
 
 # Database object, mimics LevelUP's API
 class IUDatabase
-    constructor: (@path, options) ->
-        @values = {}
+    constructor: (@path, @options) ->
+        # @options =
+        #   json: true || false
+        #   createIfMissing ?
+        #   errorIfExists ?
+        @storename = 'indexedup'
 
-    put: (key, val, cb) ->
-        @values[key] = val
-        cb()
+    open: (cb) ->
+        request = indexedDB.open @path
+        request.onsuccess = (e) =>
+            @db = request.result
+            cb null, @
+
+        request.onerror = (e) =>
+            cb new Error "Failed to open IndexedDB (@path)", e
+
+        request.onupgradeneeded = (e) =>
+            db = e.target.result
+            @store = db.createObjectStore @storename, { keyPath: 'key' }
+
+    getStore: (write) ->
+        mode = if write then 'readwrite' else 'readonly'
+        transaction = @db.transaction [@storename], mode
+        return transaction.objectStore @storename
+
+    put: (key, data, cb) ->
+        req = @getStore(true).add { key: key, value: data }
+        req.onsuccess = (e) ->
+            cb null, req.result
+        req.onerror = (e) ->
+            cb e
 
     get: (key, cb) ->
-        if val = @values[key]
-            cb null, val
-        else
-            cb new Error 'Key not found', null
+        req = @getStore().get key
+        req.onsuccess = (e) ->
+            if result = req.result?.value
+                cb null, result
+            else
+                cb new Error "Key not found in database [#{key}]", e
+        req.onerror = (err) ->
+            cb err
 
     del: (key, cb) ->
-        delete @values[key]
-        cb null, null
+        req = @getStore(true).delete key
+        req.onsuccess = (e) ->
+            cb null, req.result
+        req.onerror = (e) ->
+            cb new Error "Key not found in database [#{key}]", e
 
     readStream: ->
         new ReadableStream @
 
 IndexedUp = (path, options, cb) ->
-    cb null, new IUDatabase path, options
+    newdb = new IUDatabase path, options
+    newdb.open cb
 
 window.indexedup = IndexedUp
