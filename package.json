@@ -1,0 +1,26 @@
+{
+  "name": "indexedup",
+  "description": "levelup(leveldb) API for the browser",
+  "version": "0.1.0",
+  "main": "lib/main.coffee",
+  "dependencies": {
+  },
+  "devDependencies": {
+    "flour": "",
+    "mocha": "",
+    "chai": "~1.3.0",
+    "levelup": "",
+    "coffee-script": "~1.4.0",
+    "browserify": "~1.16.4"
+  },
+  "scripts": {
+    "prepublish": "cake build",
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/ricardobeat/project.git"
+  },
+  "author": "Ricardo Tomasi",
+  "license": "MIT (ricardo.mit-license.org)"
+}
