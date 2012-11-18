@@ -5,6 +5,7 @@ browserify = require 'browserify'
 
 task 'build', ->
     fs.writeFileSync 'lib/indexedup.js', browserify('src/indexedup.coffee').bundle()
+    minify 'lib/indexedup.js', 'dist/indexedup.min.js'
 
 task 'build:tests', ->
 
