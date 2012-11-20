@@ -133,4 +133,7 @@ IndexedUp = (path, options, cb) ->
     newdb = new IUDatabase path, options
     newdb.open cb
 
-window.indexedup = IndexedUp
+if module?.exports
+    module.exports = IndexedUp
+else
+    window.indexedup = IndexedUp
