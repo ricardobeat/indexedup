@@ -51,15 +51,17 @@ handleError = (err, cb) ->
 
 # Database object, mimics LevelUP's API
 class IUDatabase
-    constructor: (path, @_options) ->
+    constructor: (path, options) ->
         unless typeof path is 'string'
             err = new errors.InitializationError 'Must provide a location for the database'
             return handleError err
 
-        # @options =
-        #   json: true || false
-        #   createIfMissing ?
-        #   errorIfExists ?
+        @_options = {
+            createIfMissing: options.createIfMissing or false
+            errorIfExists: options.errorIfExists or false
+            encoding: options.encoding or 'json'
+            sync: false
+        }
         @storename = 'indexedup'
         @_location = path
         @_status = 'new'
@@ -207,7 +209,7 @@ class IUDatabase
 IndexedUp = (path, options, cb) ->
     if typeof options is 'function'
         [options, cb] = [cb, options]
-        
+
     newdb = new IUDatabase path, options
     newdb.open cb
 
