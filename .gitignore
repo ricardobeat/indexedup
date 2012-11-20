@@ -19,7 +19,4 @@ thumbs.db
 
 *.sublime-workspace
 
-test/browser/*.js
-test/browser/*.css
 test/testdb*
-test/levelup/build.js
