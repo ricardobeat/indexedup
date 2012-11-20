@@ -51,7 +51,7 @@ handleError = (err, cb) ->
 
 # Database object, mimics LevelUP's API
 class IUDatabase
-    constructor: (path, options) ->
+    constructor: (path, options = {}) ->
         unless typeof path is 'string'
             err = new errors.InitializationError 'Must provide a location for the database'
             return handleError err
@@ -68,8 +68,25 @@ class IUDatabase
 
     open: (cb) ->
         request = indexedDB.open @_location
+
+        checkOptions = (store) ->
+            try store = @getStore(true)
+            if @_options.errorIfExists is on and store?
+                err = new errors.OpenError "Database already exists (errorIfExists: true)"
+                handleError err, cb
+                return true
+
+            if @_options.createIfMissing is off and not store
+                err = new errors.OpenError "Database doesn't exist (createIfMissing: false)"
+                handleError err, cb
+                return true
+
+            checkOptions = ->
+            return false
+
         request.onsuccess = (e) =>
             @db = request.result
+            return if checkOptions.call @
             @_status = 'open'
             cb? null, @
 
@@ -78,6 +95,7 @@ class IUDatabase
             return handleError err, cb
 
         request.onupgradeneeded = (e) =>
+            return if checkOptions.call @
             db = e.target.result
             @store = db.createObjectStore @storename, { keyPath: 'key' }
 

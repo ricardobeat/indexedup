@@ -6,6 +6,14 @@ var assert  = buster.assert
   , errors  = require('../../src/errors')
   , common  = require('./common')
 
+var fs = {
+  stat: function(dirs, cb){
+    cb(null, {
+      isDirectory: function(){ return true }
+    })
+  }
+}
+
 buster.testCase('Basic API', {
     'setUp': common.commonSetUp
   , 'tearDown': common.commonTearDown

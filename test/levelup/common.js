@@ -28,11 +28,11 @@ ba.add('isUndefined', {
 })
 
 module.exports.nextLocation = function () {
-  return 'levelup_test_db_' + dbidx++
+  return 'levelup_test_db_' + Date.now() + dbidx++
 }
 
 module.exports.openTestDatabase = function () {
-  var options = typeof arguments[0] == 'object' ? arguments[0] : { createIfMissing: true, errorIfExists: true }
+  var options = typeof arguments[0] == 'object' ? arguments[0] : { createIfMissing: true, errorIfExists: false }
     , callback = typeof arguments[0] == 'function' ? arguments[0] : arguments[1]
     , location = typeof arguments[0] == 'string' ? arguments[0] : module.exports.nextLocation()
   this.cleanupDirs.push(location)
