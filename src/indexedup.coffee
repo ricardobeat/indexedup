@@ -205,6 +205,9 @@ class IUDatabase
         new ReadableStream @
 
 IndexedUp = (path, options, cb) ->
+    if typeof options is 'function'
+        [options, cb] = [cb, options]
+        
     newdb = new IUDatabase path, options
     newdb.open cb
 
