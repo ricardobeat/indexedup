@@ -44,9 +44,18 @@ class ReadableStream extends stream.Stream
     end: ->
         @emit 'end'
 
+# Error helper
+handleError = (err, cb) ->
+    return cb err if cb
+    throw err
+
 # Database object, mimics LevelUP's API
 class IUDatabase
     constructor: (path, @_options) ->
+        unless typeof path is 'string'
+            err = new errors.InitializationError 'Must provide a location for the database'
+            return handleError err
+
         # @options =
         #   json: true || false
         #   createIfMissing ?
@@ -59,16 +68,29 @@ class IUDatabase
         request = indexedDB.open @_location
         request.onsuccess = (e) =>
             @db = request.result
-            cb null, @
+            @_status = 'open'
+            cb? null, @
 
         request.onerror = (e) =>
             err = new errors.OpenError e
-            return cb err if cb
-            throw err
+            return handleError err, cb
 
         request.onupgradeneeded = (e) =>
             db = e.target.result
             @store = db.createObjectStore @storename, { keyPath: 'key' }
+
+    close: (cb) ->
+        if @isOpen()
+            @db = null
+            @_status = 'closed'
+            cb()
+        else
+            err = new errors.CloseError 'Cannot close unopened database'
+            return handleError err, cb
+
+    isOpen: -> @_status is 'open'
+
+    isClosed: -> @_status is 'closed'
 
     getStore: (write) ->
         mode = if write then 'readwrite' else 'readonly'
@@ -78,24 +100,33 @@ class IUDatabase
     put: (key, data, cb) ->
         unless @isOpen()
             err = new errors.WriteError 'Database has not been opened'
-            return cb err if cb
-            throw err
+            return handleError err, cb
 
-        req = @getStore(true).add { key: key, value: data }
+        unless key?
+            err = new errors.WriteError 'Invalid key'
+            return handleError err, cb
+
+        unless data?
+            err = new errors.WriteError 'Invalid data'
+            return handleError err, cb
+
+        req = @getStore(true).put { key: key, value: data }
 
         req.onsuccess = (e) ->
             cb null, req.result
 
         req.onerror = (e) ->
             err = new errors.WriteError e
-            return cb err if cb
-            throw err
+            return handleError err, cb
 
     get: (key, cb) ->
         unless @isOpen()
             err = new errors.ReadError 'Database has not been opened'
-            return cb err if cb
-            throw err
+            return handleError err, cb
+
+        unless key?
+            err = new errors.ReadError 'Invalid key'
+            return handleError err, cb
 
         req = @getStore().get key
 
@@ -107,14 +138,16 @@ class IUDatabase
 
         req.onerror = (err) ->
             err = new errors.NotFoundError "Key not found in database [#{key}]"
-            return cb err if cb
-            throw err
+            return handleError err, cb
 
     del: (key, cb) ->
         unless @isOpen()
             err = new errors.WriteError 'Database has not been opened'
-            return cb err if cb
-            throw err
+            return handleError err, cb
+
+        unless key?
+            err = new errors.WriteError 'Invalid key'
+            return handleError err, cb
 
         req = @getStore(true).delete key
 

@@ -1,43 +1,16 @@
 /* Copyright (c) 2012 Rod Vagg <@rvagg> */
 
 var assert  = buster.assert
-  , levelup = require('../../src/indexedup')
+  , levelup = require('../../src/indexedup.coffee')
   , async   = require('async')
   , errors  = require('../../src/errors')
   , common  = require('./common')
 
-var common = {
-  nextLocation: function(){
-    return 'testlu' + Date.now()
-  }
-}
-
-var openTestDatabase = function () {
-  var options = typeof arguments[0] == 'object' ? arguments[0] : { createIfMissing: true, errorIfExists: true }
-    , callback = typeof arguments[0] == 'function' ? arguments[0] : arguments[1]
-    , location = typeof arguments[0] == 'string' ? arguments[0] : common.nextLocation()
-    levelup(location, options, function (err, db) {
-      refute(err)
-      if (!err) {
-        callback(db)
-      }
-    }.bind(this))
-}
-
-buster.assertions.add('isInstanceOf', {
-    assert: function (actual, expected) {
-        return actual instanceof expected
-    }
-  , refute: function (actual, expected) {
-        return !(actual instanceof expected)
-    }
-  , assertMessage: '${0} expected to be instance of ${1}'
-  , refuteMessage: '${0} expected not to be instance of ${1}'
-})
-
 buster.testCase('Basic API', {
+    'setUp': common.commonSetUp
+  , 'tearDown': common.commonTearDown
 
-    'levelup()': function () {
+  , 'levelup()': function () {
       assert.isFunction(levelup)
       assert.equals(levelup.length, 3) // location, options & callback arguments
       assert.exception(levelup, 'InitializationError') // no location
@@ -48,6 +21,8 @@ buster.testCase('Basic API', {
       levelup(location, { createIfMissing: true, errorIfExists: true }, function (err, db) {
         refute(err)
         assert.isTrue(db.isOpen())
+        this.closeableDatabases.push(db)
+        this.cleanupDirs.push(location)
         db.close(function (err) {
           refute(err)
 
@@ -75,6 +50,8 @@ buster.testCase('Basic API', {
       var location = common.nextLocation()
       levelup(location, { createIfMissing: true, errorIfExists: true }, function (err, db) {
         refute(err)
+        this.closeableDatabases.push(db)
+        this.cleanupDirs.push(location)
         assert.isObject(db)
         assert.isTrue(db._options.createIfMissing)
         assert.isTrue(db._options.errorIfExists)
@@ -90,7 +67,7 @@ buster.testCase('Basic API', {
     }
 
   , 'open() with !createIfMissing expects error': function (done) {
-      levelup( common.nextLocation(), function (err, db) {
+      levelup(this.cleanupDirs[0] = common.nextLocation(), function (err, db) {
         assert(err)
         refute(db)
         assert.isInstanceOf(err, Error)
@@ -101,20 +78,21 @@ buster.testCase('Basic API', {
     }
 
   , 'open() with createIfMissing expects directory to be created': function (done) {
-      levelup( common.nextLocation(), { createIfMissing: true }, function (err, db) {
+      levelup(this.cleanupDirs[0] = common.nextLocation(), { createIfMissing: true }, function (err, db) {
+        this.closeableDatabases.push(db)
         refute(err)
         assert.isTrue(db.isOpen())
-        /*fs.stat(this.cleanupDirs[0], function (err, stat) {
+        fs.stat(this.cleanupDirs[0], function (err, stat) {
           refute(err)
           assert(stat.isDirectory())
           done()
-        })*/
-        done()
+        })
       }.bind(this))
     }
 
   , 'open() with errorIfExists expects error if exists': function (done) {
-      levelup( common.nextLocation(), { createIfMissing: true }, function (err, db) {
+      levelup(this.cleanupDirs[0] = common.nextLocation(), { createIfMissing: true }, function (err, db) {
+        this.closeableDatabases.push(db)
         refute(err) // sanity
         levelup(this.cleanupDirs[0], { errorIfExists   : true }, function (err) {
           assert(err)
@@ -127,8 +105,9 @@ buster.testCase('Basic API', {
     }
 
   , 'open() with !errorIfExists does not expect error if exists': function (done) {
-      levelup(common.nextLocation(), { createIfMissing: true }, function (err, db) {
+      levelup(this.cleanupDirs[0] = common.nextLocation(), { createIfMissing: true }, function (err, db) {
         refute(err) // sanity
+        this.closeableDatabases.push(db)
         assert.isTrue(db.isOpen())
 
         db.close(function () {
@@ -136,6 +115,7 @@ buster.testCase('Basic API', {
 
           levelup(this.cleanupDirs[0], { errorIfExists   : false }, function (err, db) {
             refute(err)
+            this.closeableDatabases.push(db)
             assert.isTrue(db.isOpen())
             done()
           }.bind(this))
@@ -145,16 +125,17 @@ buster.testCase('Basic API', {
 
   , 'Simple operations': {
         'get() on non-open database causes error': function (done) {
-          levelup(common.nextLocation(), { createIfMissing: true }, function (err, db) {
+          levelup(this.cleanupDirs[0] = common.nextLocation(), { createIfMissing: true }, function (err, db) {
             refute(err) // sanity
+            this.closeableDatabases.push(db)
             assert.isTrue(db.isOpen())
 
             db.close(function () {
               db.get('undefkey', function (err, value) {
                 refute(value)
                 assert.isInstanceOf(err, Error)
-                //assert.isInstanceOf(err, errors.LevelUPError)
-                //assert.isInstanceOf(err, errors.ReadError)
+                assert.isInstanceOf(err, errors.LevelUPError)
+                assert.isInstanceOf(err, errors.ReadError)
                 assert.match(err, /not .*open/)
                 done()
               })
@@ -163,15 +144,16 @@ buster.testCase('Basic API', {
         }
 
       , 'put() on non-open database causes error': function (done) {
-          levelup(common.nextLocation(), { createIfMissing: true }, function (err, db) {
+          levelup(this.cleanupDirs[0] = common.nextLocation(), { createIfMissing: true }, function (err, db) {
             refute(err) // sanity
+            this.closeableDatabases.push(db)
             assert.isTrue(db.isOpen())
 
             db.close(function () {
               db.put('somekey', 'somevalue', function (err) {
                 assert.isInstanceOf(err, Error)
-                //assert.isInstanceOf(err, errors.LevelUPError)
-                //assert.isInstanceOf(err, errors.WriteError)
+                assert.isInstanceOf(err, errors.LevelUPError)
+                assert.isInstanceOf(err, errors.WriteError)
                 assert.match(err, /not .*open/)
                 done()
               })
@@ -180,12 +162,12 @@ buster.testCase('Basic API', {
         }
 
       , 'get() on empty database causes error': function (done) {
-          openTestDatabase(function (db) {
+          this.openTestDatabase(function (db) {
             db.get('undefkey', function (err, value) {
               refute(value)
               assert.isInstanceOf(err, Error)
-              //assert.isInstanceOf(err, errors.LevelUPError)
-              //assert.isInstanceOf(err, errors.NotFoundError)
+              assert.isInstanceOf(err, errors.LevelUPError)
+              assert.isInstanceOf(err, errors.NotFoundError)
               assert.match(err, '[undefkey]')
               done()
             })
@@ -193,7 +175,7 @@ buster.testCase('Basic API', {
         }
 
       , 'put() and get() simple string key/value pairs': function (done) {
-          openTestDatabase(function (db) {
+          this.openTestDatabase(function (db) {
             db.put('some key', 'some value stored in the database', function (err) {
               refute(err)
               db.get('some key', function (err, value) {
@@ -206,15 +188,16 @@ buster.testCase('Basic API', {
         }
 
       , 'del() on non-open database causes error': function (done) {
-          levelup( common.nextLocation(), { createIfMissing: true }, function (err, db) {
+          levelup(this.cleanupDirs[0] = common.nextLocation(), { createIfMissing: true }, function (err, db) {
             refute(err) // sanity
+            this.closeableDatabases.push(db)
             assert.isTrue(db.isOpen())
 
             db.close(function () {
               db.del('undefkey', function (err) {
                 assert.isInstanceOf(err, Error)
-                //assert.isInstanceOf(err, errors.LevelUPError)
-                //assert.isInstanceOf(err, errors.WriteError)
+                assert.isInstanceOf(err, errors.LevelUPError)
+                assert.isInstanceOf(err, errors.WriteError)
                 assert.match(err, /not .*open/)
                 done()
               })
@@ -223,7 +206,7 @@ buster.testCase('Basic API', {
         }
 
       , 'del() on empty database doesn\'t cause error': function (done) {
-          openTestDatabase(function (db) {
+          this.openTestDatabase(function (db) {
             db.del('undefkey', function (err) {
               refute(err)
               done()
@@ -232,7 +215,7 @@ buster.testCase('Basic API', {
         }
 
       , 'del() works on real entries': function (done) {
-          openTestDatabase(function (db) {
+          this.openTestDatabase(function (db) {
             async.series(
                 [
                     function (callback) {
@@ -275,7 +258,7 @@ buster.testCase('Basic API', {
 
   , 'batch()': {
         'batch() with multiple puts': function (done) {
-          openTestDatabase(function (db) {
+          this.openTestDatabase(function (db) {
             db.batch(
                 [
                     { type: 'put', key: 'foo', value: 'afoovalue' }
@@ -301,7 +284,7 @@ buster.testCase('Basic API', {
         }
 
       , 'batch() with multiple puts and deletes': function (done) {
-          openTestDatabase(function (db) {
+          this.openTestDatabase(function (db) {
             async.series(
                 [
                     function (callback) {
@@ -363,7 +346,7 @@ buster.testCase('Basic API', {
 
       , 'batch() with can manipulate data from put()': function (done) {
           // checks encoding and whatnot
-          openTestDatabase(function (db) {
+          this.openTestDatabase(function (db) {
             async.series(
                 [
                     db.put.bind(db, '1', 'one')
@@ -417,7 +400,7 @@ buster.testCase('Basic API', {
         }
 
       , 'batch() data can be read with get() and del()': function (done) {
-          openTestDatabase(function (db) {
+          this.openTestDatabase(function (db) {
             async.series(
                 [
                     function (callback) {
@@ -463,8 +446,9 @@ buster.testCase('Basic API', {
 
   , 'null and undefined': {
         'setUp': function (done) {
-          levelup( common.nextLocation(), { createIfMissing: true }, function (err, db) {
+          levelup(this.cleanupDirs[0] = common.nextLocation(), { createIfMissing: true }, function (err, db) {
             refute(err) // sanity
+            this.closeableDatabases.push(db)
             assert.isTrue(db.isOpen())
             this.db = db
             done()
@@ -475,7 +459,7 @@ buster.testCase('Basic API', {
           this.db.get(null, function (err, value) {
             refute(value)
             assert.isInstanceOf(err, Error)
-            //assert.isInstanceOf(err, errors.LevelUPError)
+            assert.isInstanceOf(err, errors.LevelUPError)
             done()
           })
         }
@@ -483,9 +467,8 @@ buster.testCase('Basic API', {
       , 'get() with undefined key causes error': function (done) {
           this.db.get(undefined, function (err, value) {
             refute(value)
-            console.log(err)
             assert.isInstanceOf(err, Error)
-            //assert.isInstanceOf(err, errors.LevelUPError)
+            assert.isInstanceOf(err, errors.LevelUPError)
             done()
           })
         }
@@ -494,7 +477,7 @@ buster.testCase('Basic API', {
           this.db.del(null, function (err, value) {
             refute(value)
             assert.isInstanceOf(err, Error)
-            //assert.isInstanceOf(err, errors.LevelUPError)
+            assert.isInstanceOf(err, errors.LevelUPError)
             done()
           })
         }
@@ -503,7 +486,7 @@ buster.testCase('Basic API', {
           this.db.del(undefined, function (err, value) {
             refute(value)
             assert.isInstanceOf(err, Error)
-            //assert.isInstanceOf(err, errors.LevelUPError)
+            assert.isInstanceOf(err, errors.LevelUPError)
             done()
           })
         }
@@ -512,7 +495,7 @@ buster.testCase('Basic API', {
           this.db.put(null, 'foo', function (err, value) {
             refute(value)
             assert.isInstanceOf(err, Error)
-            //assert.isInstanceOf(err, errors.LevelUPError)
+            assert.isInstanceOf(err, errors.LevelUPError)
             done()
           })
         }
@@ -521,7 +504,7 @@ buster.testCase('Basic API', {
           this.db.put(undefined, 'foo', function (err, value) {
             refute(value)
             assert.isInstanceOf(err, Error)
-            //assert.isInstanceOf(err, errors.LevelUPError)
+            assert.isInstanceOf(err, errors.LevelUPError)
             done()
           })
         }
@@ -530,7 +513,7 @@ buster.testCase('Basic API', {
           this.db.put('foo', null, function (err, value) {
             refute(value)
             assert.isInstanceOf(err, Error)
-            //assert.isInstanceOf(err, errors.LevelUPError)
+            assert.isInstanceOf(err, errors.LevelUPError)
             done()
           })
         }
@@ -539,7 +522,7 @@ buster.testCase('Basic API', {
           this.db.put('foo', undefined, function (err, value) {
             refute(value)
             assert.isInstanceOf(err, Error)
-            //assert.isInstanceOf(err, errors.LevelUPError)
+            assert.isInstanceOf(err, errors.LevelUPError)
             done()
           })
         }

@@ -2,7 +2,7 @@
 
 var ba      = window.buster.assertions
   , async   = require('async')
-  , levelup = window.indexedup
+  , levelup = require('../../src/indexedup.coffee')
   , dbidx   = 0
 
 ba.add('isInstanceOf', {
@@ -35,7 +35,6 @@ module.exports.openTestDatabase = function () {
   var options = typeof arguments[0] == 'object' ? arguments[0] : { createIfMissing: true, errorIfExists: true }
     , callback = typeof arguments[0] == 'function' ? arguments[0] : arguments[1]
     , location = typeof arguments[0] == 'string' ? arguments[0] : module.exports.nextLocation()
-  refute(err)
   this.cleanupDirs.push(location)
   levelup(location, options, function (err, db) {
     refute(err)
@@ -52,6 +51,7 @@ module.exports.commonTearDown = function (done) {
     , function (db, callback) {
         db.close(callback)
       }
+    , done
   )
 }
 
@@ -81,5 +81,5 @@ module.exports.commonSetUp = function () {
   this.cleanupDirs = []
   this.closeableDatabases = []
   this.openTestDatabase = module.exports.openTestDatabase.bind(this)
-  this.timeout = 10000
+  this.timeout = 2000
 }
