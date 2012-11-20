@@ -1,7 +1,7 @@
 /* Copyright (c) 2012 Rod Vagg <@rvagg> */
 
 var assert  = buster.assert
-  , levelup = require('../../src/indexedup.coffee')
+  , levelup = require('../../src/indexedup.js')
   , async   = require('async')
   , errors  = require('../../src/errors')
   , common  = require('./common')

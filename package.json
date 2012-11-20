@@ -2,7 +2,7 @@
   "name": "indexedup",
   "description": "levelup(leveldb) API for the browser",
   "version": "0.1.0",
-  "main": "lib/main.coffee",
+  "main": "src/indexedup.js",
   "dependencies": {
     "errno": "*"
   },

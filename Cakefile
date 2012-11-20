@@ -3,8 +3,8 @@ cp         = require 'child_process'
 fs         = require 'fs'
 browserify = require 'browserify'
 
-task 'build:coffee', ->
-    compile 'src/indexedup.coffee', 'lib/indexedup.js'
+task 'build:main', ->
+    fs.writeFileSync 'lib/indexedup.js', browserify('src/indexedup.js').bundle()
 
 task 'build:dist', ->
     minify 'lib/indexedup.js', 'dist/indexedup.min.js'
@@ -12,7 +12,6 @@ task 'build:dist', ->
 task 'build:tests', ->
     flour.minifiers.js = null
 
-    invoke 'build:coffee'
     compile 'test/spec.coffee'            , 'test/browser/spec.js'
     compile 'node_modules/chai/chai.js'   , 'test/browser/chai.js'
     compile 'node_modules/mocha/mocha.css', 'test/browser/mocha.css'
@@ -24,16 +23,16 @@ task 'build:tests', ->
     fs.writeFileSync 'test/levelup/build.js', browserify('test/levelup/simple-test.js').bundle()
 
 task 'build', ->
-    invoke 'build:coffee'
+    invoke 'build:main'
     invoke 'build:dist'
 
 task 'watch:tests', ->
     do (build = -> invoke 'build:tests')
     watch [
+        'src/indexedup.js'
         'test/spec.coffee'
         'test/levelup/simple-test.js'
         'test/levelup/common.js'
-        'src/indexedup.coffee'
     ], build
 
 
