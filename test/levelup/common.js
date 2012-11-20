@@ -2,7 +2,7 @@
 
 var ba      = window.buster.assertions
   , async   = require('async')
-  , levelup = require('../../src/indexedup.coffee')
+  , levelup = require('../../src/indexedup.js')
   , dbidx   = 0
 
 ba.add('isInstanceOf', {
