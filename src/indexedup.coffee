@@ -92,9 +92,12 @@ class IUDatabase
 
     isClosed: -> @_status is 'closed'
 
-    getStore: (write) ->
+    getTransaction: (write) ->
         mode = if write then 'readwrite' else 'readonly'
-        transaction = @db.transaction [@storename], mode
+        return @db.transaction [@storename], mode
+
+    getStore: (write, transaction) ->
+        transaction ?= @getTransaction write
         return transaction.objectStore @storename
 
     put: (key, data, cb) ->
@@ -113,7 +116,7 @@ class IUDatabase
         req = @getStore(true).put { key: key, value: data }
 
         req.onsuccess = (e) ->
-            cb null, req.result
+            cb? null, req.result
 
         req.onerror = (e) ->
             err = new errors.WriteError e
@@ -132,7 +135,7 @@ class IUDatabase
 
         req.onsuccess = (e) ->
             if result = req.result?.value
-                cb null, result
+                cb? null, result
             else
                 req.onerror()
 
@@ -152,12 +155,34 @@ class IUDatabase
         req = @getStore(true).delete key
 
         req.onsuccess = (e) ->
-            cb null, req.result
+            cb? null, req.result
 
         req.onerror = (e) ->
             err = new errors.WriteError e
             return cb err if cb
             throw err
+
+    batch: (arr, cb) ->
+        unless @isOpen()
+            err = new errors.WriteError 'Database has not been opened'
+            return handleError err, cb
+
+        transaction = @getTransaction true
+        store = @getStore null, transaction
+        
+        for op in arr when op.type? and op.key?
+            switch op.type
+                when 'put'
+                    store.put { key: op.key, value: op.value }
+                when 'del'
+                    store.delete op.key
+
+        transaction.oncomplete = (e) ->
+            cb()
+
+        transaction.onerror = (e) ->
+            err = new errors.WriteError e
+            handleError err, cb
 
     readStream: ->
         new ReadableStream @
