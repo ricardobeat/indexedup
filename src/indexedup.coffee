@@ -1,5 +1,5 @@
 stream = require 'stream'
-errors = require 'errors'
+errors = require './errors'
 
 # Helper for finding prefixed global objects
 prefixed = (key) ->
