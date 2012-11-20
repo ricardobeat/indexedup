@@ -1,4 +1,5 @@
 stream = require 'stream'
+errors = require 'errors'
 
 # Helper for finding prefixed global objects
 prefixed = (key) ->
@@ -45,21 +46,23 @@ class ReadableStream extends stream.Stream
 
 # Database object, mimics LevelUP's API
 class IUDatabase
-    constructor: (@path, @options) ->
+    constructor: (path, @options) ->
         # @options =
         #   json: true || false
         #   createIfMissing ?
         #   errorIfExists ?
         @storename = 'indexedup'
+        @_location = path
+        @_status = 'new'
 
     open: (cb) ->
-        request = indexedDB.open @path
+        request = indexedDB.open @_location
         request.onsuccess = (e) =>
             @db = request.result
             cb null, @
 
         request.onerror = (e) =>
-            cb new Error "Failed to open IndexedDB (@path)", e
+            cb new Error "Failed to open IndexedDB (@_location)", e
 
         request.onupgradeneeded = (e) =>
             db = e.target.result
