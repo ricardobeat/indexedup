@@ -391,332 +391,338 @@ process.binding = function (name) {
 
 });
 
-require.define("/src/indexedup.coffee",function(require,module,exports,__dirname,__filename,process,global){(function() {
-  var IDBKeyRange, IDBTransaction, IUDatabase, IndexedUp, ReadableStream, errors, handleError, indexedDB, prefixed, stream,
-    __hasProp = {}.hasOwnProperty,
-    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
-
-  stream = require('stream');
-
-  errors = require('./errors');
-
-  prefixed = function(key) {
-    var keyUpper, prefix, res, _i, _len, _ref;
-    if (res = window[key]) {
-      return res;
+require.define("/src/indexedup.js",function(require,module,exports,__dirname,__filename,process,global){__extends = function(child, parent) {
+    for (var key in parent) {
+        if (Object.prototype.hasOwnProperty.call(parent, key)) child[key] = parent[key]
     }
-    keyUpper = key[0].toUppercase() + key.substring(1);
-    _ref = ['moz', 'webkit', 'ms', 'o'];
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      prefix = _ref[_i];
-      res = window[prefix + keyUpper];
-      if (res != null) {
-        break;
-      }
+    function ctor() {
+        this.constructor = child
     }
-    return res;
-  };
+    ctor.prototype = parent.prototype
+    child.prototype = new ctor()
+    child.__super__ = parent.prototype
+    return child
+}
 
-  indexedDB = prefixed('indexedDB');
+var stream = require('stream')
+  , errors = require('./errors')
 
-  IDBTransaction = prefixed('IDBTransaction');
+var indexedDB = window.indexedDB
+    || window.mozIndexedDB
+    || window.webkitIndexedDB
+    || window.msIndexedDB
+    || window.oIndexedDB
 
-  IDBKeyRange = prefixed('IDBKeyRange');
+var IDBTransaction = window.IDBTransaction
+    || window.mozIDBTransaction
+    || window.webkitIDBTransaction
+    || window.msIDBTransaction
+    || window.oIndexedDB
 
-  ReadableStream = (function(_super) {
+var IDBKeyRange = window.IDBKeyRange
+    || window.mozIDBKeyRange
+    || window.webkitIDBKeyRange
+    || window.msIDBKeyRange
+    || window.oIDBKeyRange
 
-    __extends(ReadableStream, _super);
+function ReadableStream(idb) {
+    this.idb = idb
+    this.readable = true
+    process.nextTick(this.init.bind(this))
+}
 
-    function ReadableStream(idb) {
-      this.idb = idb;
-      this.readable = true;
-      process.nextTick(this.init.bind(this));
+__extends(ReadableStream, stream.Stream)
+
+ReadableStream.prototype.init = function() {
+
+    var self = this
+      , transaction = this.idb.db.transaction([this.idb._storename], 'readonly')
+      , store = transaction.objectStore(this.idb._storename)
+      , keyRange = IDBKeyRange.lowerBound(0)
+
+    req = store.openCursor(keyRange)
+
+    req.onsuccess = function(e) {
+        var result = e.target.result
+        if (!result) return
+        self.emit('data', result.value)
+        return result['continue']()
     }
 
-    ReadableStream.prototype.init = function() {
-      var keyRange, req, store, transaction,
-        _this = this;
-      transaction = this.idb.db.transaction([this.idb.storename], 'readonly');
-      store = transaction.objectStore(this.idb.storename);
-      keyRange = IDBKeyRange.lowerBound(0);
-      req = store.openCursor(keyRange);
-      req.onsuccess = function(e) {
-        var result;
-        if (!(result = e.target.result)) {
-          return;
-        }
-        _this.emit('data', result.value);
-        return result["continue"]();
-      };
-      req.onerror = function(err) {
-        return _this.emit('error', err);
-      };
-      return transaction.oncomplete = function() {
-        return _this.end();
-      };
-    };
+    req.onerror = function(err) {
+        return self.emit('error', err)
+    }
 
-    ReadableStream.prototype.write = function(chunk, encoding) {
-      return this.emit('data', chunk);
-    };
+    return transaction.oncomplete = function() {
+        return self.end()
+    }
+}
 
-    ReadableStream.prototype.end = function() {
-      return this.emit('end');
-    };
+ReadableStream.prototype.write = function(chunk, encoding) {
+    this.emit('data', chunk)
+}
 
-    return ReadableStream;
+ReadableStream.prototype.end = function() {
+    this.emit('end')
+}
 
-  })(stream.Stream);
-
-  handleError = function(err, cb) {
+function handleError(err, cb) {
     if (cb) {
-      return cb(err);
+        return cb(err)
     }
-    throw err;
-  };
+    throw err
+}
 
-  IUDatabase = (function() {
+function IUDatabase(path, options) {
 
-    function IUDatabase(path, options) {
-      var err;
-      if (options == null) {
-        options = {};
-      }
-      if (typeof path !== 'string') {
-        err = new errors.InitializationError('Must provide a location for the database');
-        return handleError(err);
-      }
-      this._options = {
-        createIfMissing: options.createIfMissing || false,
-        errorIfExists: options.errorIfExists || false,
-        encoding: options.encoding || 'json',
-        sync: false
-      };
-      this.storename = 'indexedup';
-      this._location = path;
-      this._status = 'new';
+    if (options == null) {
+        options = {}
     }
 
-    IUDatabase.prototype.open = function(cb) {
-      var checkOptions, request,
-        _this = this;
-      request = indexedDB.open(this._location);
-      checkOptions = function(store) {
-        var err;
+    if (typeof path !== 'string') {
+        err = new errors.InitializationError('Must provide a location for the database')
+        return handleError(err)
+    }
+
+    this._options = {
+        createIfMissing: options.createIfMissing || false
+      , errorIfExists: options.errorIfExists || false
+      , encoding: options.encoding || 'json'
+      , sync: false
+    }
+
+    this._storename = 'indexedup'
+    this._location = path
+    this._status = 'new'
+}
+
+IUDatabase.prototype.open = function(cb) {
+  
+    var self = this
+      , request = indexedDB.open(this._location)
+      , optionsChecked = false
+
+    function checkOptions() {
+
+        var store = null
         try {
-          store = this.getStore(true);
-        } catch (_error) {}
-        if (this._options.errorIfExists === true && (store != null)) {
-          err = new errors.OpenError("Database already exists (errorIfExists: true)");
-          handleError(err, cb);
-          return true;
+            store = self.getStore(true)
+        } catch (e) {}
+
+        if (optionsChecked) {
+            return
         }
-        if (this._options.createIfMissing === false && !store) {
-          err = new errors.OpenError("Database doesn't exist (createIfMissing: false)");
-          handleError(err, cb);
-          return true;
+
+        if (self._options.errorIfExists && (store != null)) {
+            return new errors.OpenError("Database already exists (errorIfExists: true)")
+        } else if (!self._options.createIfMissing && !store) {
+            return new errors.OpenError("Database doesn't exist (createIfMissing: false)")
         }
-        checkOptions = function() {};
-        return false;
-      };
-      request.onsuccess = function(e) {
-        _this.db = request.result;
-        if (checkOptions.call(_this)) {
-          return;
-        }
-        _this._status = 'open';
-        return typeof cb === "function" ? cb(null, _this) : void 0;
-      };
-      request.onerror = function(e) {
-        var err;
-        err = new errors.OpenError(e);
-        return handleError(err, cb);
-      };
-      return request.onupgradeneeded = function(e) {
-        var db;
-        if (checkOptions.call(_this)) {
-          return;
-        }
-        db = e.target.result;
-        return _this.store = db.createObjectStore(_this.storename, {
-          keyPath: 'key'
-        });
-      };
-    };
 
-    IUDatabase.prototype.close = function(cb) {
-      var err;
-      if (this.isOpen()) {
-        this.db = null;
-        this._status = 'closed';
-        return cb();
-      } else {
-        err = new errors.CloseError('Cannot close unopened database');
-        return handleError(err, cb);
-      }
-    };
-
-    IUDatabase.prototype.isOpen = function() {
-      return this._status === 'open';
-    };
-
-    IUDatabase.prototype.isClosed = function() {
-      return this._status === 'closed';
-    };
-
-    IUDatabase.prototype.getTransaction = function(write) {
-      var mode;
-      mode = write ? 'readwrite' : 'readonly';
-      return this.db.transaction([this.storename], mode);
-    };
-
-    IUDatabase.prototype.getStore = function(write, transaction) {
-      if (transaction == null) {
-        transaction = this.getTransaction(write);
-      }
-      return transaction.objectStore(this.storename);
-    };
-
-    IUDatabase.prototype.put = function(key, data, options, cb) {
-      var err, req, _ref;
-      if (typeof options === 'function') {
-        _ref = [cb, options], options = _ref[0], cb = _ref[1];
-      }
-      if (!this.isOpen()) {
-        err = new errors.WriteError('Database has not been opened');
-        return handleError(err, cb);
-      }
-      if (key == null) {
-        err = new errors.WriteError('Invalid key');
-        return handleError(err, cb);
-      }
-      if (data == null) {
-        err = new errors.WriteError('Invalid data');
-        return handleError(err, cb);
-      }
-      req = this.getStore(true).put({
-        key: key,
-        value: data
-      });
-      req.onsuccess = function(e) {
-        return typeof cb === "function" ? cb(null, req.result) : void 0;
-      };
-      req.onerror = function(e) {
-        err = new errors.WriteError(e);
-        return handleError(err, cb);
-      };
-    };
-
-    IUDatabase.prototype.get = function(key, options, cb) {
-      var err, req, _ref;
-      if (typeof options === 'function') {
-        _ref = [cb, options], options = _ref[0], cb = _ref[1];
-      }
-      if (!this.isOpen()) {
-        err = new errors.ReadError('Database has not been opened');
-        return handleError(err, cb);
-      }
-      if (key == null) {
-        err = new errors.ReadError('Invalid key');
-        return handleError(err, cb);
-      }
-      req = this.getStore().get(key);
-      req.onsuccess = function(e) {
-        var result, _ref1;
-        if (result = (_ref1 = req.result) != null ? _ref1.value : void 0) {
-          return typeof cb === "function" ? cb(null, result) : void 0;
-        } else {
-          return req.onerror();
-        }
-      };
-      req.onerror = function(err) {
-        err = new errors.NotFoundError("Key not found in database [" + key + "]");
-        return handleError(err, cb);
-      };
-    };
-
-    IUDatabase.prototype.del = function(key, options, cb) {
-      var err, req, _ref;
-      if (typeof options === 'function') {
-        _ref = [cb, options], options = _ref[0], cb = _ref[1];
-      }
-      if (!this.isOpen()) {
-        err = new errors.WriteError('Database has not been opened');
-        return handleError(err, cb);
-      }
-      if (key == null) {
-        err = new errors.WriteError('Invalid key');
-        return handleError(err, cb);
-      }
-      req = this.getStore(true)["delete"](key);
-      req.onsuccess = function(e) {
-        return typeof cb === "function" ? cb(null, req.result) : void 0;
-      };
-      req.onerror = function(e) {
-        err = new errors.WriteError(e);
-        if (cb) {
-          return cb(err);
-        }
-        throw err;
-      };
-    };
-
-    IUDatabase.prototype.batch = function(arr, cb) {
-      var err, op, store, transaction, _i, _len;
-      if (!this.isOpen()) {
-        err = new errors.WriteError('Database has not been opened');
-        return handleError(err, cb);
-      }
-      transaction = this.getTransaction(true);
-      store = this.getStore(null, transaction);
-      for (_i = 0, _len = arr.length; _i < _len; _i++) {
-        op = arr[_i];
-        if ((op.type != null) && (op.key != null)) {
-          switch (op.type) {
-            case 'put':
-              store.put({
-                key: op.key,
-                value: op.value
-              });
-              break;
-            case 'del':
-              store["delete"](op.key);
-          }
-        }
-      }
-      transaction.oncomplete = function(e) {
-        return cb();
-      };
-      transaction.onerror = function(e) {
-        err = new errors.WriteError(e);
-        return handleError(err, cb);
-      };
-    };
-
-    IUDatabase.prototype.readStream = function() {
-      return new ReadableStream(this);
-    };
-
-    return IUDatabase;
-
-  })();
-
-  IndexedUp = function(path, options, cb) {
-    var newdb, _ref;
-    if (typeof options === 'function') {
-      _ref = [cb, options], options = _ref[0], cb = _ref[1];
+        optionsChecked = true
+        return false
     }
-    newdb = new IUDatabase(path, options);
-    return newdb.open(cb);
-  };
 
-  if (typeof module !== "undefined" && module !== null ? module.exports : void 0) {
-    module.exports = IndexedUp;
-  } else {
-    window.indexedup = IndexedUp;
+    request.onsuccess = function(e) {
+        self.db = request.result
+        self._status = 'open'
+        var err
+        if (err = checkOptions()) {
+            return handleError(err, cb)
+        }
+        if (typeof cb === 'function') {
+            cb(null, self)
+        }
+    }
+
+    request.onupgradeneeded = function(e) {
+        var err
+        if (err = checkOptions()) {
+            return handleError(err, cb)
+        }
+        var db = e.target.result
+        self.store = db.createObjectStore(self._storename, { keyPath: 'key' })
+    }
+
+    request.onerror = function(e) {
+        var err = new errors.OpenError(e)
+        return handleError(err, cb)
+    }
+}
+
+IUDatabase.prototype.close = function(cb) {
+    if (this.isOpen()) {
+        this.db = null
+        this._status = 'closed'
+        return cb()
+    } else {
+        err = new errors.CloseError('Cannot close unopened database')
+        return handleError(err, cb)
+    }
+}
+
+IUDatabase.prototype.isOpen = function() {
+  return this._status === 'open'
+}
+
+IUDatabase.prototype.isClosed = function() {
+  return this._status === 'closed'
+}
+
+IUDatabase.prototype.getTransaction = function(write) {
+  var mode = write ? 'readwrite' : 'readonly'
+  return this.db.transaction([this._storename], mode)
+}
+
+IUDatabase.prototype.getStore = function(write, transaction) {
+  if (transaction == null) {
+    transaction = this.getTransaction(write)
   }
+  return transaction.objectStore(this._storename)
+}
 
-}).call(this);
+IUDatabase.prototype.put = function(key, data, options, cb) {
+    if (typeof options === 'function') {
+        cb = options
+        options = null
+    }
+    if (!this.isOpen()) {
+        var err = new errors.WriteError('Database has not been opened')
+        return handleError(err, cb)
+    }
+    if (key == null) {
+        var err = new errors.WriteError('Invalid key')
+        return handleError(err, cb)
+    }
+    if (data == null) {
+        var err = new errors.WriteError('Invalid data')
+        return handleError(err, cb)
+    }
+
+    req = this.getStore(true).put({ key: key, value: data })
+    
+    req.onsuccess = function(e) {
+        return typeof cb === "function" ? cb(null, req.result) : void 0
+    }
+
+    req.onerror = function(e) {
+        err = new errors.WriteError(e)
+        return handleError(err, cb)
+    }
+}
+
+IUDatabase.prototype.get = function(key, options, cb) {
+    if (typeof options === 'function') {
+        cb = options
+        options = cb
+    }
+    if (!this.isOpen()) {
+        var err = new errors.ReadError('Database has not been opened')
+        return handleError(err, cb)
+    }
+    if (key == null) {
+        var err = new errors.ReadError('Invalid key')
+        return handleError(err, cb)
+    }
+
+    req = this.getStore().get(key)
+
+    req.onsuccess = function(e) {
+        var result = req.result
+        if (typeof req.result !== 'undefined' && typeof cb === 'function') {
+            cb(null, req.result.value)
+        } else {
+            req.onerror()
+        }
+    }
+
+    req.onerror = function(err) {
+        var err = new errors.NotFoundError("Key not found in database [" + key + "]")
+        return handleError(err, cb)
+    }
+}
+
+IUDatabase.prototype.del = function(key, options, cb) {
+    if (typeof options === 'function') {
+        cb = options
+        options = cb
+    }
+    if (!this.isOpen()) {
+        var err = new errors.WriteError('Database has not been opened')
+        return handleError(err, cb)
+    }
+    if (key == null) {
+        var err = new errors.WriteError('Invalid key')
+        return handleError(err, cb)
+    }
+
+    req = this.getStore(true)["delete"](key)
+
+    req.onsuccess = function(e) {
+        if (typeof cb === "function") {
+            cb(null, req.result)
+        }
+    }
+    req.onerror = function(e) {
+        var err = new errors.WriteError(e)
+        if (typeof cb === 'function'){
+            return cb(err)
+        }
+        throw err
+    }
+}
+
+IUDatabase.prototype.batch = function(arr, cb) {
+    if (!this.isOpen()) {
+        var err = new errors.WriteError('Database has not been opened')
+        return handleError(err, cb)
+    }
+
+    var transaction = this.getTransaction(true)
+      , store = this.getStore(null, transaction)
+
+    for (_i = 0, _len = arr.length; _i < _len; _i++) {
+        op = arr[_i]
+        if (op.type == null || op.key == null) continue
+        
+        switch(op.type) {
+            case 'put':
+                store.put({ key: op.key, value: op.value })
+                break
+            case 'get':
+                store.delete(op.key)
+                break
+        }
+    }
+
+    transaction.oncomplete = function(e) {
+        if (typeof cb === 'function') cb()
+    }
+
+    transaction.onerror = function(e) {
+        var err = new errors.WriteError(e)
+        return handleError(err, cb)
+    }
+}
+
+IUDatabase.prototype.readStream = function() {
+  return new ReadableStream(this)
+}
+
+function IndexedUp(path, options, cb) {
+    if (typeof options === 'function') {
+        cb = options
+        options = null
+    }
+    newdb = new IUDatabase(path, options)
+    return newdb.open(cb)
+}
+
+if (typeof module !== "undefined" && module !== null ? module.exports : void 0) {
+    module.exports = IndexedUp
+} else {
+    window.indexedup = IndexedUp
+}
 
 });
 
@@ -1365,24 +1371,18 @@ exports.format = function(f) {
 
 });
 
-require.define("/src/errors.coffee",function(require,module,exports,__dirname,__filename,process,global){(function() {
-  var LevelUPError, errno;
+require.define("/src/errors.js",function(require,module,exports,__dirname,__filename,process,global){var errno = require('errno')
+  , LevelUPError = errno.custom.createError('LevelUPError')
 
-  errno = require('errno');
-
-  LevelUPError = errno.custom.createError('LevelUPError');
-
-  module.exports = {
-    LevelUPError: LevelUPError,
-    InitializationError: errno.custom.createError('InitializationError', LevelUPError),
-    OpenError: errno.custom.createError('OpenError', LevelUPError),
-    ReadError: errno.custom.createError('ReadError', LevelUPError),
-    WriteError: errno.custom.createError('WriteError', LevelUPError),
-    NotFoundError: errno.custom.createError('NotFoundError', LevelUPError),
-    CloseError: errno.custom.createError('CloseError', LevelUPError)
-  };
-
-}).call(this);
+module.exports = {
+    LevelUPError        : LevelUPError
+  , InitializationError : errno.custom.createError('InitializationError', LevelUPError)
+  , OpenError           : errno.custom.createError('OpenError', LevelUPError)
+  , ReadError           : errno.custom.createError('ReadError', LevelUPError)
+  , WriteError          : errno.custom.createError('WriteError', LevelUPError)
+  , NotFoundError       : errno.custom.createError('NotFoundError', LevelUPError)
+  , CloseError          : errno.custom.createError('CloseError', LevelUPError)
+}
 
 });
 
@@ -2573,7 +2573,7 @@ require.define("/test/levelup/common.js",function(require,module,exports,__dirna
 
 var ba      = window.buster.assertions
   , async   = require('async')
-  , levelup = require('../../src/indexedup.coffee')
+  , levelup = require('../../src/indexedup.js')
   , dbidx   = 0
 
 ba.add('isInstanceOf', {
@@ -2659,7 +2659,7 @@ module.exports.commonSetUp = function () {
 require.define("/test/levelup/simple-test.js",function(require,module,exports,__dirname,__filename,process,global){/* Copyright (c) 2012 Rod Vagg <@rvagg> */
 
 var assert  = buster.assert
-  , levelup = require('../../src/indexedup.coffee')
+  , levelup = require('../../src/indexedup.js')
   , async   = require('async')
   , errors  = require('../../src/errors')
   , common  = require('./common')
