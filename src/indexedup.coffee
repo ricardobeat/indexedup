@@ -46,7 +46,7 @@ class ReadableStream extends stream.Stream
 
 # Database object, mimics LevelUP's API
 class IUDatabase
-    constructor: (path, @options) ->
+    constructor: (path, @_options) ->
         # @options =
         #   json: true || false
         #   createIfMissing ?
@@ -62,7 +62,9 @@ class IUDatabase
             cb null, @
 
         request.onerror = (e) =>
-            cb new Error "Failed to open IndexedDB (@_location)", e
+            err = new errors.OpenError e
+            return cb err if cb
+            throw err
 
         request.onupgradeneeded = (e) =>
             db = e.target.result
@@ -74,28 +76,55 @@ class IUDatabase
         return transaction.objectStore @storename
 
     put: (key, data, cb) ->
+        unless @isOpen()
+            err = new errors.WriteError 'Database has not been opened'
+            return cb err if cb
+            throw err
+
         req = @getStore(true).add { key: key, value: data }
+
         req.onsuccess = (e) ->
             cb null, req.result
+
         req.onerror = (e) ->
-            cb e
+            err = new errors.WriteError e
+            return cb err if cb
+            throw err
 
     get: (key, cb) ->
+        unless @isOpen()
+            err = new errors.ReadError 'Database has not been opened'
+            return cb err if cb
+            throw err
+
         req = @getStore().get key
+
         req.onsuccess = (e) ->
             if result = req.result?.value
                 cb null, result
             else
-                cb new Error "Key not found in database [#{key}]", e
+                req.onerror()
+
         req.onerror = (err) ->
-            cb err
+            err = new errors.NotFoundError "Key not found in database [#{key}]"
+            return cb err if cb
+            throw err
 
     del: (key, cb) ->
+        unless @isOpen()
+            err = new errors.WriteError 'Database has not been opened'
+            return cb err if cb
+            throw err
+
         req = @getStore(true).delete key
+
         req.onsuccess = (e) ->
             cb null, req.result
+
         req.onerror = (e) ->
-            cb new Error "Key not found in database [#{key}]", e
+            err = new errors.WriteError e
+            return cb err if cb
+            throw err
 
     readStream: ->
         new ReadableStream @
