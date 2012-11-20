@@ -1,4 +1,4 @@
-__extends = function(child, parent) {
+var __extends = function(child, parent) {
     for (var key in parent) {
         if (Object.prototype.hasOwnProperty.call(parent, key)) child[key] = parent[key]
     }
