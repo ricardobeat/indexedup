@@ -100,7 +100,10 @@ class IUDatabase
         transaction ?= @getTransaction write
         return transaction.objectStore @storename
 
-    put: (key, data, cb) ->
+    put: (key, data, options, cb) ->
+        if typeof options is 'function'
+            [options, cb] = [cb, options]
+
         unless @isOpen()
             err = new errors.WriteError 'Database has not been opened'
             return handleError err, cb
@@ -122,7 +125,10 @@ class IUDatabase
             err = new errors.WriteError e
             return handleError err, cb
 
-    get: (key, cb) ->
+    get: (key, options, cb) ->
+        if typeof options is 'function'
+            [options, cb] = [cb, options]
+
         unless @isOpen()
             err = new errors.ReadError 'Database has not been opened'
             return handleError err, cb
@@ -143,7 +149,10 @@ class IUDatabase
             err = new errors.NotFoundError "Key not found in database [#{key}]"
             return handleError err, cb
 
-    del: (key, cb) ->
+    del: (key, options, cb) ->
+        if typeof options is 'function'
+            [options, cb] = [cb, options]
+            
         unless @isOpen()
             err = new errors.WriteError 'Database has not been opened'
             return handleError err, cb
