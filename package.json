@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "main": "lib/main.coffee",
   "dependencies": {
+    "errno": "*"
   },
   "devDependencies": {
     "flour": "",
@@ -12,7 +13,8 @@
     "levelup": "",
     "coffee-script": "~1.4.0",
     "browserify": "~1.16.4",
-    "uglify-js": ""
+    "uglify-js": "",
+    "async": "*"
   },
   "scripts": {
     "prepublish": "cake build",
