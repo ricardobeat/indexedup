@@ -28,9 +28,6 @@ IndexedUp is a wrapper for IndexedDB in the browser, with the goal of being 100%
 * <a href="https://github.com/rvagg/node-levelup#isOpen"><code>db.<b>isOpen()</b></code></a>
 * <a href="https://github.com/rvagg/node-levelup#isClosed"><code>db.<b>isClosed()</b></code></a>
 * <a href="https://github.com/rvagg/node-levelup#readStream"><code>db.<b>readStream()</b></code></a>
-* <a href="https://github.com/rvagg/node-levelup#keyStream"><strike><code>db.<b>keyStream()</b></code></strike></a>
-* <a href="https://github.com/rvagg/node-levelup#valueStream"><strike><code>db.<b>valueStream()</b></code></strike></a>
-* <a href="https://github.com/rvagg/node-levelup#writeStream"><strike><code>db.<b>writeStream()</b></code></strike></a>
 
 #### Tests
 
