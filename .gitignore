@@ -23,3 +23,4 @@ test/browser/*.js
 test/browser/*.css
 test/testdb*
 test/levelup/build.js
+test/levelup/buster*

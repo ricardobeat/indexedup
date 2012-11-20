@@ -18,6 +18,9 @@ task 'build:tests', ->
     compile 'node_modules/mocha/mocha.css', 'test/browser/mocha.css'
     compile 'node_modules/mocha/mocha.js' , 'test/browser/mocha.js'
 
+    compile 'node_modules/buster/resources/buster-test.js' , 'test/levelup/buster-test.js'
+    compile 'node_modules/buster/resources/buster-test.css', 'test/levelup/buster-test.css'
+    
     fs.writeFileSync 'test/levelup/build.js', browserify('test/levelup/simple-test.js').bundle()
 
 task 'build', ->
