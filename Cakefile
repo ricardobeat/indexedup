@@ -4,7 +4,7 @@ fs         = require 'fs'
 browserify = require 'browserify'
 
 task 'build:coffee', ->
-    fs.writeFileSync 'lib/indexedup.js', browserify('src/indexedup.coffee').bundle()
+    compile 'src/indexedup.coffee', 'lib/indexedup.js'
 
 task 'build:dist', ->
     minify 'lib/indexedup.js', 'dist/indexedup.min.js'
@@ -28,8 +28,11 @@ task 'watch:tests', ->
     do (build = -> invoke 'build:tests')
     watch [
         'test/spec.coffee'
+        'test/levelup/simple-test.js'
+        'test/levelup/common.js'
         'src/indexedup.coffee'
     ], build
+
 
 task 'clean', ->
     cp.exec 'rm -rf test/testdb*'
