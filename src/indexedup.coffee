@@ -125,6 +125,8 @@ class IUDatabase
             err = new errors.WriteError e
             return handleError err, cb
 
+        return
+
     get: (key, options, cb) ->
         if typeof options is 'function'
             [options, cb] = [cb, options]
@@ -149,10 +151,12 @@ class IUDatabase
             err = new errors.NotFoundError "Key not found in database [#{key}]"
             return handleError err, cb
 
+        return
+
     del: (key, options, cb) ->
         if typeof options is 'function'
             [options, cb] = [cb, options]
-            
+
         unless @isOpen()
             err = new errors.WriteError 'Database has not been opened'
             return handleError err, cb
@@ -170,6 +174,8 @@ class IUDatabase
             err = new errors.WriteError e
             return cb err if cb
             throw err
+
+        return
 
     batch: (arr, cb) ->
         unless @isOpen()
@@ -192,6 +198,8 @@ class IUDatabase
         transaction.onerror = (e) ->
             err = new errors.WriteError e
             handleError err, cb
+
+        return
 
     readStream: ->
         new ReadableStream @
