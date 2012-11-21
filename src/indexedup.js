@@ -288,8 +288,8 @@ IUDatabase.prototype.batch = function(arr, cb) {
     var transaction = this.getTransaction(true)
       , store = this.getStore(null, transaction)
 
-    for (_i = 0, _len = arr.length; _i < _len; _i++) {
-        op = arr[_i]
+    for (var i = 0, ln = arr.length; i < ln; i++) {
+        op = arr[i]
         if (op.type == null || op.key == null) continue
         
         switch(op.type) {
