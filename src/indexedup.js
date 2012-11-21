@@ -327,8 +327,8 @@ function IndexedUp(path, options, cb) {
     return newdb.open(cb)
 }
 
-if (typeof module !== "undefined" && module !== null ? module.exports : void 0) {
+if (typeof module !== "undefined" && module.exports) {
     module.exports = IndexedUp
 } else {
-    window.indexedup = IndexedUp
+    window['indexedup'] = IndexedUp
 }
