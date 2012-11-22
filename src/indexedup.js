@@ -243,7 +243,7 @@ IUDatabase.prototype.batch = function(arr, cb) {
             case 'put':
                 store.put({ key: op.key, value: op.value })
                 break
-            case 'get':
+            case 'del':
                 store['delete'](op.key)
                 break
         }
