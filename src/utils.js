@@ -17,7 +17,7 @@ function decode (data, encoding) {
 
 function extend (dest, src) {
     for (var key in src){
-        if (Object.prototype.hasOwnProperty.call(parent, key)){
+        if (Object.prototype.hasOwnProperty.call(src, key)){
             dest[key] = src[key]
         }
     }
