@@ -262,22 +262,12 @@ IUDatabase.prototype.batch = function(arr, cb) {
 // Readable/Writable streams
 // -------------------------
 
-function ReadableStream(idb) {
+function ReadableStream(idb, options) {
     this.idb = idb
     this.readable = true
     process.nextTick(this.init.bind(this))
-}
 
-util.inherits(ReadableStream, stream.Stream)
-
-ReadableStream.prototype.init = function(options) {
-
-    var self = this
-      , transaction = this.idb.getTransaction()
-      , store = this.idb.getStore(transaction)
-      , keyRange = IDBKeyRange.lowerBound(0)
-
-    this._options = options = util.extend({
+    this._options = util.extend({
         start   : null
       , end     : null
       , reverse : false
@@ -285,13 +275,34 @@ ReadableStream.prototype.init = function(options) {
       , values  : true
       , limit   : -1
     }, options)
+}
 
-    var req = store.openCursor(keyRange)
+util.inherits(ReadableStream, stream.Stream)
+
+ReadableStream.prototype.init = function(options) {
+    var self = this
+      , transaction = this.idb.getTransaction()
+      , store = this.idb.getStore(transaction)
+      , keyRange = IDBKeyRange.lowerBound(0)
+      , req = store.openCursor(keyRange)
+      , options = this._options
 
     req.onsuccess = function(e) {
         var result = e.target.result
+          , data = null
+
         if (!result) return
-        self.emit('data', result.value)
+
+        if (options.keys && options.values) {
+            data = data.value
+        else if (options.keys && !options.values) {
+            data = data.key
+        } else if (options.values) {
+            data = data.value
+        }
+
+        self.emit('data', result)
+
         return result['continue']()
     }
 
@@ -304,16 +315,20 @@ ReadableStream.prototype.init = function(options) {
     }
 }
 
-ReadableStream.prototype.write = function(chunk, encoding) {
-    this.emit('data', chunk)
-}
-
 ReadableStream.prototype.end = function() {
     this.emit('end')
 }
 
 IUDatabase.prototype.readStream = function() {
-  return new ReadableStream(this)
+    return new ReadableStream(this)
+}
+
+IUDatabase.prototype.keyStream = function() {
+    return new ReadableStream(this, { keys: true, values: false })
+}
+
+IUDatabase.prototype.valueStream = function() {
+    return new ReadableStream(this, { keys: false, values: true })
 }
 
 // Entry point.
