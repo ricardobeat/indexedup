@@ -34,7 +34,7 @@ function IUDatabase(path, options) {
     }
 
     if (typeof path !== 'string') {
-        err = new errors.InitializationError('Must provide a location for the database')
+        var err = new errors.InitializationError('Must provide a location for the database')
         return util.handleError(err)
     }
 
@@ -110,7 +110,7 @@ IUDatabase.prototype.close = function(cb) {
         this._status = 'closed'
         return cb()
     } else {
-        err = new errors.CloseError('Cannot close unopened database')
+        var err = new errors.CloseError('Cannot close unopened database')
         return util.handleError(err, cb)
     }
 }
@@ -153,7 +153,7 @@ IUDatabase.prototype.put = function(key, data, options, cb) {
         return util.handleError(err, cb)
     }
 
-    req = this.getStore(true).put({ key: key, value: data })
+    var req = this.getStore(true).put({ key: key, value: data })
     
     req.onsuccess = function(e) {
         return typeof cb === "function" ? cb(null, req.result) : void 0
@@ -179,7 +179,7 @@ IUDatabase.prototype.get = function(key, options, cb) {
         return util.handleError(err, cb)
     }
 
-    req = this.getStore().get(key)
+    var req = this.getStore().get(key)
 
     req.onsuccess = function(e) {
         var result = req.result
@@ -210,7 +210,7 @@ IUDatabase.prototype.del = function(key, options, cb) {
         return util.handleError(err, cb)
     }
 
-    req = this.getStore(true)["delete"](key)
+    var req = this.getStore(true)["delete"](key)
 
     req.onsuccess = function(e) {
         if (typeof cb === "function") {
@@ -236,7 +236,7 @@ IUDatabase.prototype.batch = function(arr, cb) {
       , store = this.getStore(null, transaction)
 
     for (var i = 0, ln = arr.length; i < ln; i++) {
-        op = arr[i]
+        var op = arr[i]
         if (op.type == null || op.key == null) continue
         
         switch(op.type) {
@@ -244,7 +244,7 @@ IUDatabase.prototype.batch = function(arr, cb) {
                 store.put({ key: op.key, value: op.value })
                 break
             case 'get':
-                store.delete(op.key)
+                store['delete'](op.key)
                 break
         }
     }
@@ -323,7 +323,7 @@ function IndexedUp(path, options, cb) {
         cb = options
         options = null
     }
-    newdb = new IUDatabase(path, options)
+    var newdb = new IUDatabase(path, options)
     return newdb.open(cb)
 }
 

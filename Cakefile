@@ -35,6 +35,30 @@ task 'watch:tests', ->
         'test/levelup/common.js'
     ], build
 
+task 'lint', ->
+
+    flour.linters.js.options =
+        forin    : true
+        immed    : true
+        latedef  : true
+        newcap   : true
+        nonew    : true
+        undef    : true
+        unused   : true
+        asi      : true
+        boss     : true
+        eqnull   : true
+        laxbreak : true
+        laxcomma : true
+        shadow   : true
+        sub      : true
+        strict   : false
+        unused   : false
+        browser  : true
+        node     : true
+
+    lint 'src/indexedup.js', (passed) ->
+        console.log passed
 
 task 'clean', ->
     cp.exec 'rm -rf test/testdb*'
