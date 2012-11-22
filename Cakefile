@@ -10,6 +10,7 @@ task 'build:dist', ->
     minify 'lib/indexedup.js', 'dist/indexedup.min.js'
 
 task 'build:tests', ->
+    invoke 'lint'
     flour.minifiers.js = null
 
     compile 'test/spec.coffee'            , 'test/browser/spec.js'
@@ -23,10 +24,15 @@ task 'build:tests', ->
     fs.writeFileSync 'test/levelup/build.js', browserify('test/levelup/simple-test.js').bundle()
 
 task 'build', ->
+    invoke 'lint'
     invoke 'build:main'
     invoke 'build:dist'
 
+task 'watch', ->
+    watch 'src/*.js', -> invoke 'build:main'
+
 task 'watch:tests', ->
+    invoke 'watch'
     do (build = -> invoke 'build:tests')
     watch [
         'src/indexedup.js'
@@ -58,7 +64,9 @@ task 'lint', ->
         node     : true
 
     lint 'src/indexedup.js', (passed) ->
-        console.log passed
+        if not passed
+            process.exit()
+            throw 'Stop!' 
 
 task 'clean', ->
     cp.exec 'rm -rf test/testdb*'
