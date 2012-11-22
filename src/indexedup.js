@@ -1,18 +1,9 @@
-__extends = function(child, parent) {
-    for (var key in parent) {
-        if (Object.prototype.hasOwnProperty.call(parent, key)) child[key] = parent[key]
-    }
-    function ctor() {
-        this.constructor = child
-    }
-    ctor.prototype = parent.prototype
-    child.prototype = new ctor()
-    child.__super__ = parent.prototype
-    return child
-}
-
 var stream = require('stream')
   , errors = require('./errors')
+  , util   = require('./utils')
+
+// IndexedDB fallbacks
+// -------------------
 
 var indexedDB = window.indexedDB
     || window.mozIndexedDB
@@ -32,54 +23,10 @@ var IDBKeyRange = window.IDBKeyRange
     || window.msIDBKeyRange
     || window.oIDBKeyRange
 
-function ReadableStream(idb) {
-    this.idb = idb
-    this.readable = true
-    process.nextTick(this.init.bind(this))
-}
-
-__extends(ReadableStream, stream.Stream)
-
-ReadableStream.prototype.init = function() {
-
-    var self = this
-      , transaction = this.idb.db.transaction([this.idb._storename], 'readonly')
-      , store = transaction.objectStore(this.idb._storename)
-      , keyRange = IDBKeyRange.lowerBound(0)
-
-    req = store.openCursor(keyRange)
-
-    req.onsuccess = function(e) {
-        var result = e.target.result
-        if (!result) return
-        self.emit('data', result.value)
-        return result['continue']()
-    }
-
-    req.onerror = function(err) {
-        return self.emit('error', err)
-    }
-
-    return transaction.oncomplete = function() {
-        return self.end()
-    }
-}
-
-ReadableStream.prototype.write = function(chunk, encoding) {
-    this.emit('data', chunk)
-}
-
-ReadableStream.prototype.end = function() {
-    this.emit('end')
-}
-
-function handleError(err, cb) {
-    if (cb) {
-        return cb(err)
-    }
-    throw err
-}
-
+// IUDatabase
+// ----------------
+// This is what you get from an indexedup() call.
+// It should mirror node-levelup's API.
 function IUDatabase(path, options) {
 
     if (options == null) {
@@ -87,16 +34,16 @@ function IUDatabase(path, options) {
     }
 
     if (typeof path !== 'string') {
-        err = new errors.InitializationError('Must provide a location for the database')
-        return handleError(err)
+        var err = new errors.InitializationError('Must provide a location for the database')
+        return util.handleError(err)
     }
 
-    this._options = {
-        createIfMissing: options.createIfMissing || false
-      , errorIfExists: options.errorIfExists || false
-      , encoding: options.encoding || 'json'
+    this._options = util.extend({
+        createIfMissing: false
+      , errorIfExists: false
+      , encoding: 'utf8'
       , sync: false
-    }
+    }, options)
 
     this._storename = 'indexedup'
     this._location = path
@@ -135,7 +82,7 @@ IUDatabase.prototype.open = function(cb) {
         self._status = 'open'
         var err
         if (err = checkOptions()) {
-            return handleError(err, cb)
+            return util.handleError(err, cb)
         }
         if (typeof cb === 'function') {
             cb(null, self)
@@ -145,7 +92,7 @@ IUDatabase.prototype.open = function(cb) {
     request.onupgradeneeded = function(e) {
         var err
         if (err = checkOptions()) {
-            return handleError(err, cb)
+            return util.handleError(err, cb)
         }
         var db = e.target.result
         self.store = db.createObjectStore(self._storename, { keyPath: 'key' })
@@ -153,7 +100,7 @@ IUDatabase.prototype.open = function(cb) {
 
     request.onerror = function(e) {
         var err = new errors.OpenError(e)
-        return handleError(err, cb)
+        return util.handleError(err, cb)
     }
 }
 
@@ -163,8 +110,8 @@ IUDatabase.prototype.close = function(cb) {
         this._status = 'closed'
         return cb()
     } else {
-        err = new errors.CloseError('Cannot close unopened database')
-        return handleError(err, cb)
+        var err = new errors.CloseError('Cannot close unopened database')
+        return util.handleError(err, cb)
     }
 }
 
@@ -195,18 +142,18 @@ IUDatabase.prototype.put = function(key, data, options, cb) {
     }
     if (!this.isOpen()) {
         var err = new errors.WriteError('Database has not been opened')
-        return handleError(err, cb)
+        return util.handleError(err, cb)
     }
     if (key == null) {
         var err = new errors.WriteError('Invalid key')
-        return handleError(err, cb)
+        return util.handleError(err, cb)
     }
     if (data == null) {
         var err = new errors.WriteError('Invalid data')
-        return handleError(err, cb)
+        return util.handleError(err, cb)
     }
 
-    req = this.getStore(true).put({ key: key, value: data })
+    var req = this.getStore(true).put({ key: key, value: data })
     
     req.onsuccess = function(e) {
         return typeof cb === "function" ? cb(null, req.result) : void 0
@@ -214,7 +161,7 @@ IUDatabase.prototype.put = function(key, data, options, cb) {
 
     req.onerror = function(e) {
         err = new errors.WriteError(e)
-        return handleError(err, cb)
+        return util.handleError(err, cb)
     }
 }
 
@@ -225,14 +172,14 @@ IUDatabase.prototype.get = function(key, options, cb) {
     }
     if (!this.isOpen()) {
         var err = new errors.ReadError('Database has not been opened')
-        return handleError(err, cb)
+        return util.handleError(err, cb)
     }
     if (key == null) {
         var err = new errors.ReadError('Invalid key')
-        return handleError(err, cb)
+        return util.handleError(err, cb)
     }
 
-    req = this.getStore().get(key)
+    var req = this.getStore().get(key)
 
     req.onsuccess = function(e) {
         var result = req.result
@@ -245,7 +192,7 @@ IUDatabase.prototype.get = function(key, options, cb) {
 
     req.onerror = function(err) {
         var err = new errors.NotFoundError("Key not found in database [" + key + "]")
-        return handleError(err, cb)
+        return util.handleError(err, cb)
     }
 }
 
@@ -256,14 +203,14 @@ IUDatabase.prototype.del = function(key, options, cb) {
     }
     if (!this.isOpen()) {
         var err = new errors.WriteError('Database has not been opened')
-        return handleError(err, cb)
+        return util.handleError(err, cb)
     }
     if (key == null) {
         var err = new errors.WriteError('Invalid key')
-        return handleError(err, cb)
+        return util.handleError(err, cb)
     }
 
-    req = this.getStore(true)["delete"](key)
+    var req = this.getStore(true)["delete"](key)
 
     req.onsuccess = function(e) {
         if (typeof cb === "function") {
@@ -282,22 +229,22 @@ IUDatabase.prototype.del = function(key, options, cb) {
 IUDatabase.prototype.batch = function(arr, cb) {
     if (!this.isOpen()) {
         var err = new errors.WriteError('Database has not been opened')
-        return handleError(err, cb)
+        return util.handleError(err, cb)
     }
 
     var transaction = this.getTransaction(true)
       , store = this.getStore(null, transaction)
 
-    for (_i = 0, _len = arr.length; _i < _len; _i++) {
-        op = arr[_i]
+    for (var i = 0, ln = arr.length; i < ln; i++) {
+        var op = arr[i]
         if (op.type == null || op.key == null) continue
         
         switch(op.type) {
             case 'put':
                 store.put({ key: op.key, value: op.value })
                 break
-            case 'get':
-                store.delete(op.key)
+            case 'del':
+                store['delete'](op.key)
                 break
         }
     }
@@ -308,25 +255,165 @@ IUDatabase.prototype.batch = function(arr, cb) {
 
     transaction.onerror = function(e) {
         var err = new errors.WriteError(e)
-        return handleError(err, cb)
+        return util.handleError(err, cb)
+    }
+}
+
+// Readable/Writable streams
+// -------------------------
+
+function ReadableStream(idb, options) {
+    this.idb = idb
+    this.readable = true
+    process.nextTick(this.init.bind(this))
+
+    this._options = util.extend({
+        start   : null
+      , end     : null
+      , reverse : false
+      , keys    : true
+      , values  : true
+      , limit   : -1
+    }, options)
+}
+
+util.inherits(ReadableStream, stream.Stream)
+
+ReadableStream.prototype.init = function(options) {
+    var self = this
+      , transaction = this.idb.getTransaction()
+      , store = this.idb.getStore(transaction)
+      , keyRange = IDBKeyRange.lowerBound(0)
+      , req = store.openCursor(keyRange)
+      , options = this._options
+
+    req.onsuccess = function(e) {
+        var cursor = e.target.result
+          , data = null
+
+        if (!cursor) {
+            self.end()
+            return
+        }
+
+        if (options.keys && options.values) {
+            data = cursor.value
+        } else if (options.keys && !options.values) {
+            data = cursor.value.key
+        } else if (options.values) {
+            data = cursor.value.value
+        }
+
+        self.emit('data', data)
+        cursor['continue']()
+    }
+
+    req.onerror = function(err) {
+        self.emit('error', err)
+    }
+}
+
+ReadableStream.prototype.end = function() {
+    this.emit('end')
+}
+
+function WritableStream(idb, options) {
+    this.idb = idb
+    this.writable = true
+    this.buffer = []
+    this._end = false
+    this.scheduled = false
+    this.flushWrites = this.flushWrites.bind(this)
+}
+
+util.inherits(WritableStream, stream.Stream)
+
+WritableStream.prototype.write = function(data) {
+    if (!this.writable) {
+        return false
+    }
+    if (this.buffer.length === 0) {
+        process.nextTick(this.flushWrites)
+        this.scheduled = true
+    }
+
+    this.buffer.push(data)
+
+    return true
+}
+
+WritableStream.prototype.flushWrites = function() {
+
+    this.scheduled = false
+
+    if (!this.writable) {
+        return
+    }
+
+    var self = this
+
+    if (this.buffer.length === 1) {
+        var data = this.buffer.shift()
+        this.idb.put(data.key, data.value, function(err) {
+            if (err) self.emit('error', err)
+        })
+    } else if (this.buffer.length > 1) {
+        var ops = this.buffer.map(function(o){
+            o.type = 'put'
+        })
+        this.idb.batch(this.buffer, function(err) {
+            if (err) self.emit('error', err)
+        }) 
+    }
+
+    if (this._end) {
+        this.writable = false
+        this.emit('close')
+    }
+}
+
+WritableStream.prototype.destroy = function() {
+    this.writable = false
+    this.end()
+}
+
+WritableStream.prototype.end = function(){
+    this._end = true
+    if (!this.scheduled) {
+        process.nextTick(this.flushWrites)
     }
 }
 
 IUDatabase.prototype.readStream = function() {
-  return new ReadableStream(this)
+    return new ReadableStream(this)
 }
 
+IUDatabase.prototype.keyStream = function() {
+    return new ReadableStream(this, { keys: true, values: false })
+}
+
+IUDatabase.prototype.valueStream = function() {
+    return new ReadableStream(this, { keys: false, values: true })
+}
+
+IUDatabase.prototype.writeStream = function() {
+    return new WritableStream(this)
+}
+
+// Entry point.
+// Creates, opens and returns a IUDatabase instance.
 function IndexedUp(path, options, cb) {
     if (typeof options === 'function') {
         cb = options
         options = null
     }
-    newdb = new IUDatabase(path, options)
+    var newdb = new IUDatabase(path, options)
     return newdb.open(cb)
 }
 
-if (typeof module !== "undefined" && module !== null ? module.exports : void 0) {
+if (typeof module !== "undefined" && module.exports) {
     module.exports = IndexedUp
-} else {
-    window.indexedup = IndexedUp
+}
+if (typeof window !== 'undefined') {
+    window['indexedup'] = IndexedUp
 }
