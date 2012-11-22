@@ -56,7 +56,7 @@ describe 'IndexedUp', ->
                     s = db.readStream()
                     s.on 'data', (data) ->
                         full_data[data.key] = data.value
-                    s.on 'end', (data) ->
+                    s.on 'end', ->
                         full_data.should.eql { one: '1', two: '2' }
                         done()
 
