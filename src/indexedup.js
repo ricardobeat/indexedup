@@ -319,6 +319,61 @@ ReadableStream.prototype.end = function() {
     this.emit('end')
 }
 
+function WritableStream(idb, options) {
+    this.idb = idb
+    this.writable = true
+    this.buffer = []
+    process.nextTick(this.init.bind(this))
+    this.flushWrites = this.flushWrites.bind(this)
+}
+
+util.inherits(WritableStream, stream.Stream)
+
+WritableStream.prototype.write = function(data) {
+    if (!this.writable) {
+        return false
+    }
+    if (this.buffer.length === 0) {
+        process.nextTick(this.flushWrites)
+    }
+
+    data.type = 'put'
+    this.buffer.push(data)
+
+    return true
+}
+
+WritableStream.prototype.flushWrites = function() {
+    if (!this.writable) return
+
+    var self = this
+
+    if (this.buffer.length === 1) {
+        var data = this.buffer.shift()
+        this.idb.put(data.key, data.value, function(err) {
+            if (err) self.error(err)
+        })
+    } else if (this.buffer.length > 1) {
+        this.idb.batch(this.buffer, function(err) {
+            if (err) self.error(err)
+        })    
+    }
+}
+
+WritableStream.prototype.error = function(err) {
+    this.emit('error', err)
+    this.end()
+}
+
+WritableStream.prototype.destroy = function() {
+    this.end()
+}
+
+WritableStream.prototype.end = function(){
+    this.writable = false
+    this.emit('close')
+}
+
 IUDatabase.prototype.readStream = function() {
     return new ReadableStream(this)
 }
@@ -329,6 +384,10 @@ IUDatabase.prototype.keyStream = function() {
 
 IUDatabase.prototype.valueStream = function() {
     return new ReadableStream(this, { keys: false, values: true })
+}
+
+IUDatabase.prototype.writeStream = function() {
+    return new WritableStream(this)
 }
 
 // Entry point.
@@ -344,6 +403,7 @@ function IndexedUp(path, options, cb) {
 
 if (typeof module !== "undefined" && module.exports) {
     module.exports = IndexedUp
-} else {
+}
+if (typeof window !== 'undefined') {
     window['indexedup'] = IndexedUp
 }
