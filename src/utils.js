@@ -1,5 +1,5 @@
 
-util = {
+utils = {
     encode: function(data, encoding) {
         if (encoding === 'json'){
             return JSON.stringify(data)
@@ -38,4 +38,4 @@ util = {
     }
 }
 
-module.exports = util
+module.exports = utils
