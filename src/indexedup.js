@@ -1,6 +1,6 @@
 var stream = require('stream')
   , errors = require('./errors')
-  , util   = require('./util')
+  , util   = require('./utils')
 
 // IndexedDB fallbacks
 // -------------------
