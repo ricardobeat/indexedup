@@ -31,7 +31,9 @@ IndexedUp is a wrapper for IndexedDB in the browser, with the goal of being 100%
 
 #### Tests
 
-Passes levelup's test/simple-test.js (http://ricardobeat.github.com/indexedup/test/levelup/)
+Passes levelup's test/simple-test.js (http://ricardobeat.github.com/indexedup/test/levelup/) with a few changes.
+
+The basic test suite (`test/spec.coffee`) is 100% interchangeable with either node-levelup (run `mocha`) or indexedup [in the browser](http://ricardobeat.github.com/indexedup/test/browser/).
 
 #### Missing features / TODO
 
