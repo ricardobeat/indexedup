@@ -295,7 +295,7 @@ ReadableStream.prototype.init = function(options) {
 
         if (options.keys && options.values) {
             data = data.value
-        else if (options.keys && !options.values) {
+        } else if (options.keys && !options.values) {
             data = data.key
         } else if (options.values) {
             data = data.value
