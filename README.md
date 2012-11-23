@@ -1,7 +1,7 @@
 IndexedUp
 =========
 
-IndexedUp is a wrapper for IndexedDB in the browser, with the goal of being 100% API compatible with [node-levelup](https://github.com/rvagg/node-levelup).
+IndexedUp is a port of [node-levelup](https://github.com/rvagg/node-levelup) (LevelDB driver) for the browser, backed by IndexedDB. The API should be 100% compatible with node-levelup's, allowing you to share database code between the server and client.
 
 #### Usage
 
@@ -28,6 +28,9 @@ IndexedUp is a wrapper for IndexedDB in the browser, with the goal of being 100%
 * <a href="https://github.com/rvagg/node-levelup#isOpen"><code>db.<b>isOpen()</b></code></a>
 * <a href="https://github.com/rvagg/node-levelup#isClosed"><code>db.<b>isClosed()</b></code></a>
 * <a href="https://github.com/rvagg/node-levelup#readStream"><code>db.<b>readStream()</b></code></a>
+* <a href="https://github.com/rvagg/node-levelup#keyStream"><code>db.<b>keyStream()</b></code></a>
+* <a href="https://github.com/rvagg/node-levelup#valueStream"><code>db.<b>valueStream()</b></code></a>
+* <a href="https://github.com/rvagg/node-levelup#writeStream"><code>db.<b>writeStream()</b></code></a>
 
 #### Tests
 
@@ -37,7 +40,6 @@ The basic test suite (`test/spec.coffee`) is 100% interchangeable with either no
 
 #### Missing features / TODO
 
-- `options.encoding`
-- key/value/write streams
+- deal with `options.encoding`
 - buffering / sync constructor
 - events
